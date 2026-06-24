@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cricket Scores</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    color: #58a6ff;
+    margin-bottom: 20px;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .controls button {
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s;
+  }
+  .controls button:hover {
+    background: #21262d;
+  }
+  .controls button.active {
+    background: #238636;
+    border-color: #2ea043;
+    color: white;
+  }
+  .status-text {
+    text-align: center;
+    color: #8b949e;
+    margin-bottom: 15px;
+    font-size: 13px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+  }
+  .card.live {
+    border-color: #2ea043;
+    box-shadow: 0 0 0 1px #2ea043 inset;
+  }
+  .live-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #2ea043;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 10px;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .match-type {
+    font-size: 11px;
+    color: #58a6ff;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .teams {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .status {
+    font-size: 13px;
+    color: #c9d1d9;
+    margin-bottom: 8px;
+  }
+  .venue {
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .loading, .empty {
+    text-align: center;
+    color: #8b949e;
+    margin-top: 50px;
+    font-size: 15px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🏏 Cricket Scores</h1>
+
+<div class="controls">
+  <button data-filter="all" class="active">All Matches</button>
+  <button data-filter="live">Live Only</button>
+  <button data-filter="pakistan">Pakistan</button>
+</div>
+
+<div class="status-text" id="statusText">Loading matches...</div>
+<div class="grid" id="grid"></div>
+
+<script>
+const URL = "/api/matches";
+
+let allMatches = [];
+let currentFilter = "all";
+
+// Category nikalna status text se
+function getCategory(match) {
+  const s = (match.status || "").toLowerCase();
+  if (s.includes("won") || s.includes("drawn") || s.includes("no result") || s.includes("abandon")) {
+    return "completed";
+  }
+  if (s.includes("yet to begin") || s.includes("scheduled") || s.includes("upcoming")) {
+    return "upcoming";
+  }
+  // matchStarted true aur abhi result nahi aaya -> live
+  if (match.matchStarted && !match.matchEnded) {
+    return "live";
+  }
+  return "completed";
+}
+
+function isPakistanMatch(match) {
+  return (match.name || "").toLowerCase().includes("pakistan");
+}
+
+function sortMatches(matches) {
+  const order = { live: 0, upcoming: 1, completed: 2 };
+  return [...matches].sort((a, b) => order[getCategory(a)] - order[getCategory(b)]);
+}
+
+function renderCards() {
+  const grid = document.getElementById("grid");
+  const statusText = document.getElementById("statusText");
+  grid.innerHTML = "";
+
+  let filtered = sortMatches(allMatches);
+
+  if (currentFilter === "live") {
+    filtered = filtered.filter(m => getCategory(m) === "live");
+  } else if (currentFilter === "pakistan") {
+    filtered = filtered.filter(isPakistanMatch);
+  }
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="empty">Koi match nahi mila is filter ke liye.</div>`;
+    statusText.textContent = "0 matches";
+    return;
+  }
+
+  statusText.textContent = `${filtered.length} match(es) showing`;
+
+  filtered.forEach(match => {
+    const category = getCategory(match);
+    const card = document.createElement("div");
+    card.className = "card" + (category === "live" ? " live" : "");
+
+    card.innerHTML = `
+      ${category === "live" ? `<div class="live-badge">LIVE</div>` : ""}
+      <div class="match-type">${match.matchType || "match"}</div>
+      <div class="teams">${match.name || "Unknown teams"}</div>
+      <div class="status">${match.status || "Status unavailable"}</div>
+      <div class="venue">📍 ${match.venue || "Venue unknown"}</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function fetchMatches() {
+  try {
+    const res = await fetch(URL);
+    const data = await res.json();
+    if (data.status === "success" || data.data) {
+      allMatches = data.data || [];
+      renderCards();
+    } else {
+      document.getElementById("statusText").textContent = "API error: " + (data.message || "unknown");
+    }
+  } catch (err) {
+    document.getElementById("statusText").textContent = "Fetch failed: " + err.message;
+  }
+}
+
+// Filter buttons
+document.querySelectorAll(".controls button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".controls button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentFilter = btn.dataset.filter;
+    renderCards();
+  });
+});
+
+fetchMatches();
+
+// Auto-refresh every 60 seconds (live data ke liye)
+setInterval(fetchMatches, 60000);
+</script>
+
+</body>
+</html>
