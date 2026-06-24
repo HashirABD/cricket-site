@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cricket Scores</title>
+<style>
+  :root {
+    --blue: #0b5fae;
+    --blue-dark: #08498a;
+    --bg: #f3f4f6;
+    --card-bg: #ffffff;
+    --border: #e1e4e8;
+    --text: #14171a;
+    --muted: #6a737d;
+    --live-red: #d32f2f;
+    --result-blue: #1565c0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  header {
+    background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header .brand {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header .tagline {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 0 0 auto;
+    background: #fff;
+    border: 1px solid #d7dade;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .tab.active { border: 2px solid #14171a; }
+
+  .updated-row {
+    padding: 10px 20px 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .strip-wrap {
+    position: relative;
+    padding: 14px 16px 26px;
+  }
+  .strip {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding: 4px 4px 10px;
+  }
+  .strip::-webkit-scrollbar { height: 6px; }
+  .strip::-webkit-scrollbar-thumb { background: #d7dade; border-radius: 3px; }
+
+  .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #d7dade;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text);
+    z-index: 5;
+  }
+  .arrow.left { left: 4px; }
+  .arrow.right { right: 4px; }
+
+  .card {
+    flex: 0 0 300px;
+    scroll-snap-align: start;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .card:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+  .card.live { border-color: #f3c6c6; }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  .status-label {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+  .status-label.live { color: var(--live-red); }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--live-red);
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .card-meta {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  .weather-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+    background: #f6f8fa;
+    border-radius: 6px;
+    padding: 5px 9px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .weather-line .rain-alert {
+    color: #b45309;
+    font-weight: 700;
+  }
+
+  .team-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    gap: 8px;
+  }
+  .team-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .team-logo {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #eef0f2;
+    flex-shrink: 0;
+  }
+  .team-logo.initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    background: #e8f0fb;
+    color: var(--blue);
+  }
+  .team-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .team-score {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    padding-left: 10px;
+  }
+  .time-block { text-align: right; }
+  .time-label { font-size: 11px; color: var(--muted); }
+  .team-time { font-size: 14px; font-weight: 700; }
+
+  .card-line {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f1f3;
+    font-size: 12.5px;
+    color: #444;
+    line-height: 1.4;
+  }
+  .card-line.result { color: var(--result-blue); font-weight: 600; }
+
+  .loading, .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 20px;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  @media (max-width: 600px) {
+    .card { flex: 0 0 84vw; }
+    header .tagline { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">🏏 CricScores</div>
+  <div class="tagline">Live scores, auto-updating</div>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-filter="all">All Matches</div>
+  <div class="tab" data-filter="live">Live</div>
+  <div class="tab" data-filter="pakistan">Pakistan</div>
+</div>
+
+<div class="updated-row" id="updatedRow">Loading matches...</div>
+
+<div class="strip-wrap">
+  <div class="arrow left" id="arrowLeft">‹</div>
+  <div class="strip" id="strip">
+    <div class="loading">Loading matches...</div>
+  </div>
+  <div class="arrow right" id="arrowRight">›</div>
+</div>
+
+<script>
+const API_URL = "/api/matches";
+let allMatches = [];
+let currentFilter = "all";
+
+function getCategory(match) {
+  if (!match.matchStarted) return "upcoming";
+  if (match.matchStarted && !match.matchEnded) return "live";
+  return "completed";
+}
+
+function isPakistanMatch(match) {
+  return (match.name || "").toLowerCase().includes("pakistan");
+}
+
+function sortMatches(matches) {
+  const order = { live: 0, upcoming: 1, completed: 2 };
+  return [...matches].sort((a, b) => order[getCategory(a)] - order[getCategory(b)]);
+}
+
+function deriveShort(name) {
+  if (!name) return "??";
+  return name.split(" ").filter(w => w.length).map(w => w[0]).join("").toUpperCase().slice(0, 4);
+}
+
+function getTeamMeta(match, teamFullName) {
+  const list = match.teamInfo || [];
+  const found = list.find(t => t.name && (teamFullName.includes(t.name) || t.name.includes(teamFullName)));
+  return {
+    short: (found && found.shortname) || deriveShort(teamFullName),
+    img: (found && found.img) || null
+  };
+}
+
+function renderLogo(meta) {
+  if (meta.img) {
+    return `<img class="team-logo" src="${meta.img}" onerror="this.outerHTML='<div class=&quot;team-logo initials&quot;>${(meta.short || '??').slice(0,2)}</div>'">`;
+  }
+  return `<div class="team-logo initials">${(meta.short || "??").slice(0, 2)}</div>`;
+}
+
+function getTeamScore(match, teamFullName) {
+  if (!Array.isArray(match.score)) return null;
+  const entries = match.score.filter(s => s.inning && s.inning.includes(teamFullName));
+  if (!entries.length) return null;
+  const last = entries[entries.length - 1];
+  let str = `${last.r ?? 0}/${last.w ?? 0}`;
+  if (last.o) str += ` (${last.o})`;
+  return str;
+}
+
+function parseStart(match) {
+  if (!match.dateTimeGMT) return null;
+  let iso = match.dateTimeGMT;
+  if (!iso.endsWith("Z")) iso += "Z";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function getUpcomingInfo(match) {
+  const start = parseStart(match);
+  if (!start) return { label: "", time: "", countdown: match.status || "Match yet to begin" };
+
+  const now = new Date();
+  const dOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const nOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((dOnly - nOnly) / 86400000);
+  const label = diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : diffDays === -1 ? "Yesterday" : start.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const time = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+  const diffMs = start - now;
+  let countdown;
+  if (diffMs <= 0) {
+    countdown = match.status || "Match about to begin";
+  } else {
+    const totalMins = Math.floor(diffMs / 60000);
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    countdown = hrs > 0 ? `Match starts in ${hrs} hrs ${mins} mins` : `Match starts in ${mins} mins`;
+  }
+  return { label, time, countdown };
+}
+
+function shortVenue(venue) {
+  if (!venue) return "Venue TBD";
+  return venue.split(",")[0].trim();
+}
+
+function renderWeatherLine(weather) {
+  if (!weather) {
+    return `<div class="weather-line">🌡️ Conditions unavailable for this venue</div>`;
+  }
+  const rainHigh = weather.rainChance !== null && weather.rainChance !== undefined && weather.rainChance >= 50;
+  const rainPart = (weather.rainChance !== null && weather.rainChance !== undefined)
+    ? `<span class="${rainHigh ? "rain-alert" : ""}">${rainHigh ? "⚠️" : "🌧️"} ${weather.rainChance}% rain</span>`
+    : "";
+  return `<div class="weather-line">
+    <span>${weather.icon} ${weather.tempNow}°C, ${weather.condition}</span>
+    <span>💨 ${weather.windKmh} km/h</span>
+    ${rainPart}
+  </div>`;
+}
+
+function renderTabs() {
+  const counts = {
+    all: allMatches.length,
+    live: allMatches.filter(m => getCategory(m) === "live").length,
+    pakistan: allMatches.filter(isPakistanMatch).length
+  };
+  const labelMap = { all: "All Matches", live: "Live", pakistan: "Pakistan" };
+  document.querySelectorAll(".tab").forEach(tab => {
+    const f = tab.dataset.filter;
+    tab.textContent = `${labelMap[f]} (${counts[f]})`;
+  });
+}
+
+function renderCards() {
+  const strip = document.getElementById("strip");
+  const updatedRow = document.getElementById("updatedRow");
+  strip.innerHTML = "";
+
+  let filtered = sortMatches(allMatches);
+  if (currentFilter === "live") filtered = filtered.filter(m => getCategory(m) === "live");
+  else if (currentFilter === "pakistan") filtered = filtered.filter(isPakistanMatch);
+
+  if (!filtered.length) {
+    strip.innerHTML = `<div class="empty">Koi match nahi mila is filter ke liye.</div>`;
+    return;
+  }
+
+  const now = new Date();
+  updatedRow.textContent = `🔄 Updated ${now.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} • ${filtered.length} match(es) showing`;
+
+  filtered.forEach(match => {
+    const category = getCategory(match);
+    const teams = (match.teams && match.teams.length === 2) ? match.teams : [match.name || "Team 1", "Team 2"];
+    const t1 = getTeamMeta(match, teams[0]);
+    const t2 = getTeamMeta(match, teams[1]);
+
+    const card = document.createElement("div");
+    card.className = "card" + (category === "live" ? " live" : "");
+
+    const statusLabelHTML = category === "live"
+      ? `<span class="status-label live"><span class="dot"></span>LIVE</span>`
+      : category === "upcoming"
+        ? `<span class="status-label">UPCOMING</span>`
+        : `<span class="status-label">RESULT</span>`;
+
+    const rightTop = `${(match.matchType || "match").toUpperCase()} • <span title="${match.venue || ''}">${shortVenue(match.venue)}</span>`;
+
+    let row1, row2, bottomLine, bottomClass = "";
+
+    if (category === "upcoming") {
+      const info = getUpcomingInfo(match);
+      row1 = `<div class="team-row"><div class="team-left">${renderLogo(t1)}<span class="team-name">${t1.short}</span></div></div>`;
+      row2 = `<div class="team-row">
+                <div class="team-left">${renderLogo(t2)}<span class="team-name">${t2.short}</span></div>
+                <div class="time-block"><div class="time-label">${info.label}</div><div class="team-time">${info.time}</div></div>
+              </div>`;
+      bottomLine = info.countdown;
+    } else {
+      const s1 = getTeamScore(match, teams[0]);
+      const s2 = getTeamScore(match, teams[1]);
+      row1 = `<div class="team-row"><div class="team-left">${renderLogo(t1)}<span class="team-name">${t1.short}</span></div><div class="team-score">${s1 || (category === "completed" ? "DNB" : "")}</div></div>`;
+      row2 = `<div class="team-row"><div class="team-left">${renderLogo(t2)}<span class="team-name">${t2.short}</span></div><div class="team-score">${s2 || (category === "completed" ? "DNB" : "")}</div></div>`;
+      bottomLine = match.status || (category === "completed" ? "Result unavailable" : "");
+      if (category === "completed") bottomClass = "result";
+    }
+
+    card.innerHTML = `
+      <div class="card-top">
+        ${statusLabelHTML}
+        <div class="card-meta">${rightTop}</div>
+      </div>
+      ${renderWeatherLine(match.weather)}
+      ${row1}
+      ${row2}
+      <div class="card-line ${bottomClass}">${bottomLine}</div>
+    `;
+    strip.appendChild(card);
+  });
+}
+
+async function fetchMatches() {
+  try {
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    if (data.data) {
+      allMatches = data.data;
+      renderTabs();
+      renderCards();
+    } else {
+      document.getElementById("updatedRow").textContent = "API error: " + (data.message || "unknown");
+    }
+  } catch (err) {
+    document.getElementById("updatedRow").textContent = "Fetch failed: " + err.message;
+  }
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentFilter = tab.dataset.filter;
+    renderCards();
+  });
+});
+
+document.getElementById("arrowLeft").addEventListener("click", () => {
+  document.getElementById("strip").scrollBy({ left: -320, behavior: "smooth" });
+});
+document.getElementById("arrowRight").addEventListener("click", () => {
+  document.getElementById("strip").scrollBy({ left: 320, behavior: "smooth" });
+});
+
+fetchMatches();
+setInterval(fetchMatches, 60000);  // naya data fetch — API call yahi pe hoti hai (60s)
+setInterval(renderCards, 20000);   // sirf local re-render (countdown/time update) — koi API call nahi
+</script>
+
+</body>
+</html>
